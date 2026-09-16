@@ -1,0 +1,1 @@
+export const BACKEND_URL = "https://rishabh-garai-portfolio-ixdi.onrender.com";
