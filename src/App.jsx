@@ -15,22 +15,26 @@ import AiChatOrb from "./components/Aichatorb";
 import GoogleLoginCorner from "./components/GoogleLoginCorner";
 import EmojiJar from "./components/Emojijar";
 
+import { ToastProvider } from "./components/Toast"; // adjust path
+
 function App() {
     return (
         <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-            <GoogleLoginCorner />
-            <Header />
-            <AiChatOrb />
-            <EmojiJar />
-            <About />
-            <Project />
-            <Experience />
-            <Education />
-            <Skills/>
-            <Certificates />
-            <Achievements />
-            <Contact />
-            <Resume />
+            <ToastProvider>
+                <GoogleLoginCorner />
+                <Header />
+                <AiChatOrb />
+                <EmojiJar />
+                <About />
+                <Project />
+                <Experience />
+                <Education />
+                <Skills/>
+                <Certificates />
+                <Achievements />
+                <Contact />
+                <Resume />
+            </ToastProvider>
         </GoogleOAuthProvider>
     );
 }

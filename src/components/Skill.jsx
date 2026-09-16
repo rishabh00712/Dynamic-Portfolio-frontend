@@ -110,7 +110,11 @@ function buildSkillIndex(dataBySection) {
   return index;
 }
 
-/* ---------- One skill chip + its dropdown list of matching items ---------- */
+/* ---------- One skill chip + its dropdown list of matching items ----------
+   On mobile (< md) the panel is a fixed, centered overlay with a dimmed
+   backdrop — an absolutely-positioned dropdown anchored to the chip runs
+   off-screen on narrow viewports, which is why it looked broken on mobile.
+   From md upward it reverts to the original anchored dropdown. --------- */
 
 function SkillChip({ skill, matches, isOpen, onToggle }) {
   const hasMatches = matches && matches.length > 0;
@@ -152,12 +156,17 @@ function SkillChip({ skill, matches, isOpen, onToggle }) {
 
       {isOpen && (
         <>
-          {/* click-outside-to-close backdrop */}
-          <div className="fixed inset-0 z-10" onClick={onToggle} />
+          {/* click-outside-to-close backdrop — dimmed on mobile since the
+              panel now floats over the whole screen, invisible on desktop
+              where it's just there to catch outside clicks */}
+          <div
+            className="fixed inset-0 z-10 bg-black/40 md:bg-transparent"
+            onClick={onToggle}
+          />
 
           <div
-            className="absolute left-0 top-full mt-2 z-20 rounded-xl border bg-white shadow-xl overflow-hidden"
-            style={{ borderColor: `${THEME.accent}33`, minWidth: "260px", maxWidth: "320px" }}
+            className="fixed left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 w-[min(90vw,320px)] rounded-xl border bg-white shadow-xl overflow-hidden md:absolute md:left-0 md:top-full md:mt-2 md:translate-x-0 md:translate-y-0 md:w-auto md:min-w-[260px] md:max-w-[320px]"
+            style={{ borderColor: `${THEME.accent}33` }}
             onClick={(e) => e.stopPropagation()}
           >
             {!hasMatches ? (

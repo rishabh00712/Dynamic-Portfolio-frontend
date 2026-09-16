@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 
 import { BACKEND_URL } from "./apiConfig";
+import { useToast } from "./Toast";
 
 // ---------- Single source of truth for font + colors, used everywhere below ----------
 import THEME from "./theme";
@@ -74,8 +75,8 @@ function ContactRow({ icon, label, value, href }) {
 
   if (href) {
     return (
-      
-        <a href={href}
+      <a
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         className="block hover:shadow-md transition-shadow duration-200 rounded-lg"
@@ -122,6 +123,8 @@ const fieldBlur = (e) => (e.currentTarget.style.borderColor = THEME.borderStrong
 /* ---------- Main section ---------- */
 
 export default function Contact() {
+  const { showToast } = useToast();
+
   const [info, setInfo] = useState(null);
   const [infoError, setInfoError] = useState(false);
 
@@ -145,18 +148,28 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("sending");
+
     try {
       const res = await fetch(`${BACKEND_URL}/api/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error("send failed");
-      setStatus("sent");
-      setForm({ name: "", email: "", message: "" });
-      setTimeout(() => setStatus("idle"), 4000);
+
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        setStatus("sent");
+        setForm({ name: "", email: "", message: "" });
+        showToast(data.message || "Your message was sent successfully!", "success");
+      } else {
+        setStatus("error");
+        showToast(data.error || "Something went wrong — please try again.", "error");
+      }
     } catch {
       setStatus("error");
+      showToast("Could not reach the server. Please try again later.", "error");
+    } finally {
       setTimeout(() => setStatus("idle"), 4000);
     }
   };
@@ -294,17 +307,6 @@ export default function Contact() {
               >
                 {status === "sending" ? "Sending..." : status === "sent" ? "Sent ✓" : "Send"}
               </button>
-
-              {status === "sent" && (
-                <p className="text-sm text-center" style={{ color: THEME.accent, fontFamily: THEME.fontFamily }}>
-                  Thanks — I'll get back to you soon.
-                </p>
-              )}
-              {status === "error" && (
-                <p className="text-sm text-center" style={{ color: THEME.error, fontFamily: THEME.fontFamily }}>
-                  Something went wrong — please try again.
-                </p>
-              )}
             </form>
           </div>
         </div>
