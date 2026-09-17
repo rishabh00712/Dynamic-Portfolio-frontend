@@ -145,8 +145,14 @@ function ProjectCard({ project, onOpenDetails }) {
       className="rounded-xl overflow-hidden border flex flex-col cursor-pointer transition-transform duration-200 hover:shadow-lg hover:-translate-y-0.5"
       style={{ borderColor: THEME.border, backgroundColor: THEME.cardBg }}
     >
-      <div className="w-full h-44 md:h-48 overflow-hidden" style={{ backgroundColor: THEME.textDark }}>
-        <img src={project.image} alt={project.name} className="w-full h-full object-cover" loading="lazy" />
+      <div className="w-full h-44 md:h-48 overflow-hidden" style={{ backgroundColor: THEME.textDark, aspectRatio: "16 / 9" }}>
+        <img
+          src={project.image}
+          alt={project.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+        />
       </div>
 
       <div className="p-5 flex flex-col flex-1">
@@ -201,6 +207,18 @@ function CategorySection({ label, projects, isExpanded, onToggle, onOpenDetails,
   const count = projects?.length ?? 0;
   const CategoryGlyph = CATEGORY_ICONS[iconIndex % CATEGORY_ICONS.length];
 
+  // Once a category has been opened, keep its grid mounted (so collapsing
+  // still animates smoothly), but NEVER mount it before the first open.
+  // This is the main mobile-lag fix: without this, every category's full
+  // image grid is built and laid out on page load, so animating
+  // grid-template-rows on tap forces the browser to reflow a heavy,
+  // already-built grid every single frame. Deferring the mount means a
+  // collapsed category costs the browser nothing until you actually open it.
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(isExpanded);
+  useEffect(() => {
+    if (isExpanded) setHasBeenExpanded(true);
+  }, [isExpanded]);
+
   return (
     <div
       className="rounded-2xl border overflow-hidden transition-colors duration-300"
@@ -248,26 +266,33 @@ function CategorySection({ label, projects, isExpanded, onToggle, onOpenDetails,
 
       {/*
         Smooth expand/collapse using the CSS grid 0fr -> 1fr trick instead of
-        max-height. This always animates proportional to the REAL content
-        height (no huge arbitrary max-height like 4000px), which is what was
-        causing the slow/laggy feel on mobile: with max-height, most of the
-        ease-in-out curve was "wasted" animating through empty space.
-        will-change hints the browser to use the compositor where possible.
+        max-height, so the animation is always proportional to the real
+        content height. `contain: layout paint` isolates this element's
+        reflow/repaint from the rest of the page — without it, the browser
+        may recalculate layout well beyond this box on every animation
+        frame, which is a big part of what makes accordions feel laggy on
+        mobile. willChange hints the browser to prep the compositor.
       */}
       <div
         className="grid transition-[grid-template-rows] duration-300 ease-out"
-        style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr", willChange: "grid-template-rows" }}
+        style={{
+          gridTemplateRows: isExpanded ? "1fr" : "0fr",
+          willChange: "grid-template-rows",
+          contain: "layout paint",
+        }}
       >
         <div className="overflow-hidden min-h-0">
           <div className="px-5 pb-6 pt-2 md:px-6 md:pb-7" style={{ borderTop: `1px solid ${THEME.border}` }}>
             <div className="pt-5">
-              {count > 0 ? (
-                <ProjectGrid projects={projects} onOpenDetails={onOpenDetails} />
-              ) : (
-                <p className="text-sm" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
-                  Nothing here yet.
-                </p>
-              )}
+              {/* Lazy-mounted: nothing here is built until the category is opened once */}
+              {hasBeenExpanded &&
+                (count > 0 ? (
+                  <ProjectGrid projects={projects} onOpenDetails={onOpenDetails} />
+                ) : (
+                  <p className="text-sm" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
+                    Nothing here yet.
+                  </p>
+                ))}
             </div>
           </div>
         </div>
@@ -314,7 +339,7 @@ function ProjectModal({ project, onClose }) {
         <button
           aria-label="Close"
           onClick={onClose}
-          className="absolute top-4 right-6 z-10 w-9 h-9 rounded-full shadow-md flex items-center justify-center text-lg"
+          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full shadow-md flex items-center justify-center text-lg"
           style={{ backgroundColor: THEME.cardBg, color: THEME.textDark }}
         >
           ×

@@ -5,8 +5,8 @@ import { google_auth_font } from "./theme";
 
 export default function GoogleLoginCorner() {
   const [status, setStatus] = useState("checking"); // checking | idle | success | error
-  const [expanded, setExpanded] = useState(false); // is the hint line currently open
-  const [widgetDismissed, setWidgetDismissed] = useState(false); // resets to false on every reload — nothing persisted
+  const [expanded, setExpanded] = useState(false);
+  const [widgetDismissed, setWidgetDismissed] = useState(false);
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/google-login/session`, {
@@ -29,8 +29,14 @@ export default function GoogleLoginCorner() {
     });
   }, []);
 
-  // Nothing renders once logged in, still checking, OR once the user has
-  // dismissed the whole widget (logo included) for this page view.
+  // Auto-close the hint line 10s after it's opened. Only runs while
+  // `expanded` is true, and re-arms itself each time it's opened again.
+  useEffect(() => {
+    if (!expanded) return;
+    const timer = setTimeout(() => setExpanded(false), 10000);
+    return () => clearTimeout(timer);
+  }, [expanded]);
+
   if (status === "success" || status === "checking" || widgetDismissed) return null;
 
   const handleSuccess = async (credentialResponse) => {
@@ -53,27 +59,20 @@ export default function GoogleLoginCorner() {
   };
 
   const handleError = () => setStatus("error");
-
-  // ">" — opens the hint line
   const handleOpen = () => setExpanded(true);
-
-  // "<" — closes just the line; the ">" toggle comes back so it can be reopened
   const handleClose = () => setExpanded(false);
-
-  // "X" — dismisses the ENTIRE widget (logo + everything), for this page
-  // view only. Nothing is saved anywhere, so a reload brings it right back.
   const handleDismiss = () => setWidgetDismissed(true);
 
   return (
     <div className="fixed top-4 left-4 z-50">
       <div
-        className="relative flex items-center gap-[clamp(0.15rem,0.6vw,0.3rem)] rounded-full border-2 border-[#4285F4]/20 bg-white pl-[clamp(0.75rem,2vw,1.25rem)] pr-[clamp(0.5rem,1.5vw,0.85rem)] py-[clamp(0.4rem,1.5vw,0.6rem)] shadow-lg animate-[popIn_0.4s_ease-out]"
-        style={{ boxShadow: "0 6px 0 rgba(66,133,244,0.15), 0 10px 24px rgba(0,0,0,0.08)" }}
+        className="relative flex items-center gap-[clamp(0.15rem,0.6vw,0.3rem)] rounded-full border-2 border-[#16A34A]/20 bg-white pl-[clamp(0.75rem,2vw,1.25rem)] pr-[clamp(0.5rem,1.5vw,0.85rem)] py-[clamp(0.4rem,1.5vw,0.6rem)] shadow-lg animate-[popIn_0.4s_ease-out]"
+        style={{ boxShadow: "0 6px 0 rgba(22,163,74,0.15), 0 10px 24px rgba(0,0,0,0.08)" }}
       >
         {/* Clickable logo — the real GoogleLogin button sits invisibly on top
-            of it so the actual ID-token flow fires on click. */}
+            of it so the actual ID-token flow fires on click. Same on all screens. */}
         <div
-          className="relative shrink-0 h-[clamp(1.75rem,5vw,2.5rem)] w-[clamp(4rem,11vw,5.75rem)] cursor-pointer transition-transform duration-300 ease-out hover:scale-105 [animation:shake_3s_ease-in-out_infinite] hover:[animation-play-state:paused]"
+          className="relative shrink-0 h-[clamp(2.05rem,5.3vw,2.8rem)] w-[clamp(4.3rem,11.3vw,6.05rem)] cursor-pointer transition-transform duration-300 ease-out hover:scale-105 [animation:shake_3s_ease-in-out_infinite] hover:[animation-play-state:paused]"
         >
           <img
             src="https://res.cloudinary.com/udlemxig/image/upload/v1789470191/d5wl1j0-b0a1b5d6-6448-4147-85a6-32241e6aa6dd-removebg-preview.png"
@@ -86,12 +85,23 @@ export default function GoogleLoginCorner() {
           </div>
         </div>
 
-        {/* ">" — shown only when collapsed */}
+        {/* MOBILE ONLY: just an X, always visible, no ">" / "<" / hint line at all */}
+        <button
+          onClick={handleDismiss}
+          aria-label="Dismiss"
+          className="flex sm:hidden h-4 w-4 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors duration-300 ease-out hover:bg-slate-100 hover:text-slate-500"
+        >
+          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+
+        {/* DESKTOP/TABLET ONLY (sm and up): ">" toggle — shown only when collapsed */}
         {!expanded && (
           <button
             onClick={handleOpen}
             aria-label="Show info"
-            className="flex h-[clamp(1.25rem,3.5vw,1.5rem)] w-[clamp(1.25rem,3.5vw,1.5rem)] shrink-0 items-center justify-center rounded-full text-[#4285F4] transition-all duration-300 ease-out hover:bg-[#4285F4]/10 active:scale-90"
+            className="hidden sm:flex h-[clamp(1.25rem,3.5vw,1.5rem)] w-[clamp(1.25rem,3.5vw,1.5rem)] shrink-0 items-center justify-center rounded-full text-[#16A34A] transition-all duration-300 ease-out hover:bg-[#16A34A]/10 active:scale-90"
           >
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 6l6 6-6 6" />
@@ -99,9 +109,9 @@ export default function GoogleLoginCorner() {
           </button>
         )}
 
-        {/* Expandable hint line — holds both "<" (collapse) and "X" (dismiss whole widget) */}
+        {/* DESKTOP/TABLET ONLY (sm and up): expandable hint line with "<" and "X" */}
         <div
-          className="grid overflow-hidden transition-[grid-template-columns] duration-500 ease-in-out"
+          className="hidden sm:grid overflow-hidden transition-[grid-template-columns] duration-500 ease-in-out"
           style={{ gridTemplateColumns: expanded ? "1fr" : "0fr" }}
         >
           <div className="min-w-0 overflow-hidden">
@@ -110,11 +120,10 @@ export default function GoogleLoginCorner() {
                 expanded ? "opacity-100 delay-150" : "opacity-0 delay-0"
               }`}
             >
-              {/* "<" — collapses the line, ">" comes back so it can reopen */}
               <button
                 onClick={handleClose}
                 aria-label="Hide info"
-                className="flex h-[clamp(1.25rem,3.5vw,1.5rem)] w-[clamp(1.25rem,3.5vw,1.5rem)] shrink-0 items-center justify-center rounded-full text-[#4285F4] transition-all duration-300 ease-out hover:bg-[#4285F4]/10 active:scale-90"
+                className="flex h-[clamp(1.25rem,3.5vw,1.5rem)] w-[clamp(1.25rem,3.5vw,1.5rem)] shrink-0 items-center justify-center rounded-full text-[#16A34A] transition-all duration-300 ease-out hover:bg-[#16A34A]/10 active:scale-90"
               >
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 6l-6 6 6 6" />
@@ -122,13 +131,12 @@ export default function GoogleLoginCorner() {
               </button>
 
               <p
-                className="whitespace-nowrap text-[clamp(0.7rem,1.8vw,0.85rem)] leading-none text-[#4285F4]"
+                className="whitespace-nowrap text-[clamp(0.7rem,1.8vw,0.85rem)] leading-none text-[#16A34A]"
                 style={{ fontFamily: google_auth_font }}
               >
                 give the logo a click so we know it's you! ✨
               </p>
 
-              {/* "X" — dismisses the entire widget, logo included */}
               <button
                 onClick={handleDismiss}
                 aria-label="Dismiss"

@@ -53,6 +53,7 @@ export default function EmojiBar() {
   const [justReacted, setJustReacted] = useState(null);
   const [error, setError] = useState("");
   const [isDismissed, setIsDismissed] = useState(false);
+  const [expanded, setExpanded] = useState(false); // bar starts collapsed to a single emoji + ">"
 
   const total = Object.values(reactions).reduce((sum, value) => sum + value, 0);
 
@@ -63,6 +64,15 @@ export default function EmojiBar() {
   }, [lastReaction, now]);
 
   const isLocked = cooldownRemaining > 0;
+
+  // Whichever reaction should show in the collapsed preview button:
+  // the user's chosen reaction if they've reacted, otherwise the default 🤩 (wow).
+  const previewReaction = useMemo(() => {
+    if (lastReaction) {
+      return REACTIONS.find((r) => r.type === lastReaction.type) || REACTIONS[0];
+    }
+    return REACTIONS[0];
+  }, [lastReaction]);
 
   useEffect(() => {
     if (!isLocked) return undefined;
@@ -130,6 +140,12 @@ export default function EmojiBar() {
     }
   }, [isLocked, isSaving, reactions, lastReaction]);
 
+  // ">" — expands the bar to show all reaction options
+  const handleOpen = () => setExpanded(true);
+
+  // "<" — collapses back to just the single preview emoji + ">"
+  const handleClose = () => setExpanded(false);
+
   if (isDismissed) return null;
 
   return (
@@ -150,17 +166,20 @@ export default function EmojiBar() {
           font-family: var(--ej-fancy-font);
           color: var(--ej-dark);
           max-width: calc(100vw - 10px);
+          /* extra top clearance so the count badges never get clipped */
+          padding-top: 14px;
         }
         .ej-bar {
           position: relative;
           display: flex;
           align-items: center;
           gap: clamp(4px, 1.2vw, 6px);
-          padding: clamp(6px, 2vw, 9px) clamp(8px, 2.5vw, 12px);
-          border: 2px solid var(--ej-dark);
+          padding: clamp(10px, 3vw, 13px) clamp(8px, 2.5vw, 12px) clamp(7px, 2.2vw, 10px);
+          border: 1px solid ${THEME.border};
           border-radius: 999px;
           background: ${THEME.cardBg};
-          box-shadow: 0 6px 16px rgba(15,31,27,.18);
+          box-shadow: 0 6px 16px rgba(15,31,27,.14);
+          overflow: visible;
         }
         .ej-close-btn {
           display: flex;
@@ -184,6 +203,31 @@ export default function EmojiBar() {
           background: #ffd9d9;
           color: #b4483a;
           transform: scale(1.08) rotate(90deg);
+        }
+        .ej-toggle-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          border: none;
+          border-radius: 50%;
+          background: transparent;
+          color: #9ca3af;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: background .2s ease, color .2s ease, transform .2s ease;
+        }
+        .ej-toggle-btn:hover {
+          background: rgba(156,163,175,.15);
+          color: #6b7280;
+        }
+        .ej-toggle-btn:active {
+          transform: scale(.9);
+        }
+        .ej-toggle-btn svg {
+          width: 14px;
+          height: 14px;
         }
         .ej-emoji-btn {
           position: relative;
@@ -225,6 +269,7 @@ export default function EmojiBar() {
           70% { transform: scale(.92) rotate(4deg); }
           100% { transform: scale(1) rotate(0); }
         }
+        /* Tooltip — sits above the emoji, shown on hover/focus */
         .ej-tooltip {
           position: absolute;
           bottom: calc(100% + 10px);
@@ -260,8 +305,8 @@ export default function EmojiBar() {
         }
         .ej-count-dot {
           position: absolute;
-          top: -4px;
-          right: -4px;
+          top: -8px;
+          right: -6px;
           min-width: 17px;
           height: 17px;
           padding: 0 4px;
@@ -274,6 +319,7 @@ export default function EmojiBar() {
           display: flex;
           align-items: center;
           justify-content: center;
+          /* no ring around this badge anymore — it was covering the number */
         }
         .ej-divider {
           width: 1.5px;
@@ -292,6 +338,16 @@ export default function EmojiBar() {
           white-space: nowrap;
           font-family: var(--ej-fancy-font);
         }
+        .ej-cooldown-chip {
+          padding: 0 8px 0 6px;
+          margin-left: 2px;
+          font-size: clamp(10px, 2.6vw, 12px);
+          font-weight: 600;
+          letter-spacing: .01em;
+          color: #b4483a;
+          white-space: nowrap;
+          font-family: var(--ej-fancy-font);
+        }
         .ej-status.is-error {
           margin: 8px 4px 0;
           font-size: 12px;
@@ -303,18 +359,47 @@ export default function EmojiBar() {
           text-align: center;
         }
 
+        /* Smooth expand/collapse for the reaction options + total chip.
+           Animates via grid-template-columns so it grows to fit its own
+           content on any screen size without a hard-coded width guess. */
+        .ej-expand-wrap {
+          display: grid;
+          overflow: hidden;
+          transition: grid-template-columns .5s ease-in-out;
+        }
+        .ej-expand-inner {
+          display: flex;
+          align-items: center;
+          gap: clamp(4px, 1.2vw, 6px);
+          min-width: 0;
+          overflow: hidden;
+          opacity: 0;
+          transition: opacity .5s ease-in-out;
+        }
+        .ej-expand-wrap.is-open {
+          overflow: visible;
+        }
+        .ej-expand-wrap.is-open .ej-expand-inner {
+          opacity: 1;
+          transition-delay: .15s;
+        }
+
         @media (max-width: 600px) {
-          .ej-root { left: 25px; bottom: 25px; }
-          .ej-bar { gap: 3px; padding: 5px 7px; }
+          .ej-root { left: 25px; bottom: 25px; padding-top: 12px; }
+          .ej-bar { gap: 3px; padding: 9px 7px 6px; }
           .ej-emoji-btn { width: 30px; height: 30px; font-size: 15px; }
           .ej-close-btn { width: 17px; height: 17px; font-size: 10px; }
-          .ej-count-dot { min-width: 14px; height: 14px; font-size: 8px; }
+          .ej-toggle-btn { width: 17px; height: 17px; }
+          .ej-toggle-btn svg { width: 12px; height: 12px; }
+          .ej-count-dot { min-width: 14px; height: 14px; font-size: 8px; top: -7px; right: -5px; }
           .ej-total-chip { font-size: 10px; padding: 0 5px; }
           .ej-tooltip { font-size: 10px; padding: 4px 7px; }
+          /* Cooldown "Next in..." text hidden on mobile only */
+          .ej-cooldown-chip { display: none; }
         }
 
         @media (max-width: 340px) {
-          .ej-bar { padding: 4px 6px; gap: 2px; }
+          .ej-bar { padding: 8px 6px 5px; gap: 2px; }
           .ej-emoji-btn { width: 25px; height: 25px; font-size: 12px; }
           .ej-total-chip { font-size: 9px; padding: 0 4px; }
         }
@@ -325,52 +410,106 @@ export default function EmojiBar() {
       `}</style>
 
       <div className="ej-bar" role="group" aria-label="React to this">
-        {REACTIONS.map((reaction) => {
-          const isSelected = lastReaction?.type === reaction.type;
-          const disableThis = (isLocked && !isSelected) || isSaving;
-          const count = reactions[reaction.type];
-          const tooltipText = isSelected && isLocked
-            ? `${reaction.tooltip} · back in ${formatRemaining(cooldownRemaining)}`
-            : isLocked
-              ? `Try again in ${formatRemaining(cooldownRemaining)}`
-              : reaction.tooltip;
+        {/* Collapsed preview: the chosen reaction's emoji, or 🤩 by default */}
+        {!expanded && (
+          <button
+            type="button"
+            className="ej-emoji-btn"
+            style={{ background: `linear-gradient(135deg, ${previewReaction.from}, ${previewReaction.to})` }}
+            aria-label="Show reaction options"
+            onClick={handleOpen}
+          >
+            {previewReaction.emoji}
+            {reactions[previewReaction.type] > 0 && (
+              <span className="ej-count-dot" aria-hidden="true">
+                {reactions[previewReaction.type] > 99 ? "99+" : reactions[previewReaction.type]}
+              </span>
+            )}
+          </button>
+        )}
 
-          return (
+        {/* ">" — only shown while collapsed */}
+        {!expanded && (
+          <button
+            type="button"
+            className="ej-toggle-btn"
+            aria-label="Show reaction options"
+            onClick={handleOpen}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+        )}
+
+        {/* Expandable section: "<" + all 5 reactions + total/cooldown + dismiss */}
+        <div className={`ej-expand-wrap${expanded ? " is-open" : ""}`} style={{ gridTemplateColumns: expanded ? "1fr" : "0fr" }}>
+          <div className="ej-expand-inner">
             <button
-              key={reaction.type}
               type="button"
-              className={[
-                "ej-emoji-btn",
-                isSelected ? "is-selected" : "",
-                isLocked ? "is-locked" : "",
-                justReacted === reaction.type ? "is-pop" : "",
-              ].filter(Boolean).join(" ")}
-              style={{ background: `linear-gradient(135deg, ${reaction.from}, ${reaction.to})` }}
-              aria-label={`React ${reaction.label}${count ? `, ${count} reactions` : ""}`}
-              aria-pressed={isSelected}
-              disabled={disableThis}
-              onClick={() => handleReact(reaction.type)}
+              className="ej-toggle-btn"
+              aria-label="Hide reaction options"
+              onClick={handleClose}
             >
-              {reaction.emoji}
-              <span className="ej-tooltip" role="tooltip">{tooltipText}</span>
-              {count > 0 && <span className="ej-count-dot" aria-hidden="true">{count > 99 ? "99+" : count}</span>}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
             </button>
-          );
-        })}
-        <div className="ej-divider" aria-hidden="true" />
-        <span className="ej-total-chip">{loading ? "…" : `${total} react${total === 1 ? "" : "s"}`}</span>
 
-        <button
-          type="button"
-          className="ej-close-btn"
-          aria-label="Hide reaction bar"
-          onClick={() => setIsDismissed(true)}
-        >
-          ×
-        </button>
+            {REACTIONS.map((reaction) => {
+              const isSelected = lastReaction?.type === reaction.type;
+              const disableThis = (isLocked && !isSelected) || isSaving;
+              const count = reactions[reaction.type];
+              const tooltipText = isSelected && isLocked
+                ? `${reaction.tooltip} · back in ${formatRemaining(cooldownRemaining)}`
+                : isLocked
+                  ? `Try again in ${formatRemaining(cooldownRemaining)}`
+                  : reaction.tooltip;
+
+              return (
+                <button
+                  key={reaction.type}
+                  type="button"
+                  className={[
+                    "ej-emoji-btn",
+                    isSelected ? "is-selected" : "",
+                    isLocked ? "is-locked" : "",
+                    justReacted === reaction.type ? "is-pop" : "",
+                  ].filter(Boolean).join(" ")}
+                  style={{ background: `linear-gradient(135deg, ${reaction.from}, ${reaction.to})` }}
+                  aria-label={`React ${reaction.label}${count ? `, ${count} reactions` : ""}`}
+                  aria-pressed={isSelected}
+                  disabled={disableThis}
+                  onClick={() => handleReact(reaction.type)}
+                >
+                  {reaction.emoji}
+                  <span className="ej-tooltip" role="tooltip">{tooltipText}</span>
+                  {count > 0 && <span className="ej-count-dot" aria-hidden="true">{count > 99 ? "99+" : count}</span>}
+                </button>
+              );
+            })}
+
+            <div className="ej-divider" aria-hidden="true" />
+            <span className="ej-total-chip">{loading ? "…" : `${total} react${total === 1 ? "" : "s"}`}</span>
+
+            {/* Cooldown countdown — visible on desktop/tablet, hidden on mobile via media query above */}
+            {isLocked && (
+              <span className="ej-cooldown-chip">Next in {formatRemaining(cooldownRemaining)}</span>
+            )}
+
+            <button
+              type="button"
+              className="ej-close-btn"
+              aria-label="Hide reaction bar"
+              onClick={() => setIsDismissed(true)}
+            >
+              ×
+            </button>
+          </div>
+        </div>
       </div>
 
-      {error && <p className="ej-status is-error">{error}</p>}
+      {error && expanded && <p className="ej-status is-error">{error}</p>}
     </div>
   );
 }
