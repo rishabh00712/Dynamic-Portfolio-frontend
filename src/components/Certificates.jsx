@@ -29,7 +29,14 @@ function LinkIcon() {
 
 function ChevronIcon({ expanded }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform duration-300 ease-in-out" style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="transition-transform duration-200 ease-out"
+      style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
+    >
       <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -85,8 +92,8 @@ function IconAction({ label, onClick, href, children }) {
 
   if (href) {
     return (
-      
-        <a href={href}
+      <a
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={label}
@@ -176,7 +183,7 @@ function CertificateGrid({ certificates, onOpenDetails }) {
   );
 }
 
-/* ---------- Collapsible category block — proper card treatment ---------- */
+/* ---------- Collapsible category block — smooth on mobile via grid-template-rows ---------- */
 
 function CategorySection({ label, certificates, isExpanded, onToggle, onOpenDetails, iconIndex }) {
   const count = certificates?.length ?? 0;
@@ -184,7 +191,7 @@ function CategorySection({ label, certificates, isExpanded, onToggle, onOpenDeta
 
   return (
     <div
-      className="rounded-2xl border overflow-hidden transition-all duration-300"
+      className="rounded-2xl border overflow-hidden transition-colors duration-300"
       style={{
         borderColor: isExpanded ? THEME.borderStrong : THEME.border,
         backgroundColor: THEME.cardBg,
@@ -227,19 +234,27 @@ function CategorySection({ label, certificates, isExpanded, onToggle, onOpenDeta
         </span>
       </button>
 
+      {/*
+        Smooth expand/collapse using the CSS grid 0fr -> 1fr trick instead of
+        max-height. Always animates proportional to the REAL content height
+        (no arbitrary max-height like 4000px), which is what fixes the
+        slow/laggy feel on mobile.
+      */}
       <div
-        className="overflow-hidden transition-all duration-500 ease-in-out"
-        style={{ maxHeight: isExpanded ? "4000px" : "0px", opacity: isExpanded ? 1 : 0 }}
+        className="grid transition-[grid-template-rows] duration-300 ease-out"
+        style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr", willChange: "grid-template-rows" }}
       >
-        <div className="px-5 pb-6 pt-2 md:px-6 md:pb-7" style={{ borderTop: `1px solid ${THEME.border}` }}>
-          <div className="pt-5">
-            {count > 0 ? (
-              <CertificateGrid certificates={certificates} onOpenDetails={onOpenDetails} />
-            ) : (
-              <p className="text-sm" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
-                Nothing here yet.
-              </p>
-            )}
+        <div className="overflow-hidden min-h-0">
+          <div className="px-5 pb-6 pt-2 md:px-6 md:pb-7" style={{ borderTop: `1px solid ${THEME.border}` }}>
+            <div className="pt-5">
+              {count > 0 ? (
+                <CertificateGrid certificates={certificates} onOpenDetails={onOpenDetails} />
+              ) : (
+                <p className="text-sm" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
+                  Nothing here yet.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -248,7 +263,12 @@ function CategorySection({ label, certificates, isExpanded, onToggle, onOpenDeta
 }
 
 /* ---------- Detail modal ---------- */
-
+/*
+  z-[9999] + backdrop-blur-md keeps this above every other fixed element
+  (hamburger menu, sticky nav, etc.) and blurs everything behind it.
+  The × button lives in a non-scrolling outer wrapper so it stays fixed
+  in place at top-4 right-6 no matter how far the content is scrolled.
+*/
 function CertificateModal({ certificate, onClose }) {
   useEffect(() => {
     document.body.style.overflow = certificate ? "hidden" : "";
@@ -261,74 +281,76 @@ function CertificateModal({ certificate, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 backdrop-blur-md"
       style={{ backgroundColor: "rgba(15,31,27,0.55)" }}
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl"
+        className="relative w-full max-w-lg max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden"
         style={{ backgroundColor: THEME.cardBg }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-full h-48 md:h-56 overflow-hidden" style={{ backgroundColor: THEME.textDark }}>
-          <img src={certificate.image} alt={certificate.certificateName} className="w-full h-full object-cover" />
-        </div>
-
         <button
           aria-label="Close"
           onClick={onClose}
-          className="absolute top-4 right-4 w-9 h-9 rounded-full shadow-md flex items-center justify-center text-lg"
+          className="absolute top-4 right-6 z-10 w-9 h-9 rounded-full shadow-md flex items-center justify-center text-lg"
           style={{ backgroundColor: THEME.cardBg, color: THEME.textDark }}
         >
           ×
         </button>
 
-        <div className="p-6 md:p-7">
-          <h3 className="text-xl md:text-2xl font-extrabold mb-1" style={{ color: THEME.textDark, fontFamily: THEME.fontFamily }}>
-            {certificate.certificateName}
-          </h3>
+        <div className="max-h-[85vh] overflow-y-auto">
+          <div className="w-full h-48 md:h-56 overflow-hidden" style={{ backgroundColor: THEME.textDark }}>
+            <img src={certificate.image} alt={certificate.certificateName} className="w-full h-full object-cover" />
+          </div>
 
-          <p className="text-sm mb-4" style={{ color: THEME.accent, fontFamily: THEME.fontFamily }}>
-            {certificate.organization}
-            {certificate.issuedDate ? ` · ${certificate.issuedDate}` : ""}
-          </p>
+          <div className="p-6 md:p-7">
+            <h3 className="text-xl md:text-2xl font-extrabold mb-1" style={{ color: THEME.textDark, fontFamily: THEME.fontFamily }}>
+              {certificate.certificateName}
+            </h3>
 
-          <p className="text-sm md:text-base leading-relaxed mb-6" style={{ color: THEME.textBody, fontFamily: THEME.fontFamily }}>
-            {certificate.description}
-          </p>
+            <p className="text-sm mb-4" style={{ color: THEME.accent, fontFamily: THEME.fontFamily }}>
+              {certificate.organization}
+              {certificate.issuedDate ? ` · ${certificate.issuedDate}` : ""}
+            </p>
 
-          {certificate.skills?.length > 0 && (
-            <div className="mb-6">
-              <p className="text-xs uppercase tracking-wide mb-2" style={{ color: THEME.accentLight, fontFamily: THEME.fontFamily }}>
-                Skills
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {certificate.skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="text-xs px-3 py-1.5 rounded-full border"
-                    style={{ borderColor: THEME.borderStrong, color: THEME.accent, backgroundColor: `${THEME.accent}0D`, fontFamily: THEME.fontFamily }}
-                  >
-                    {skill}
-                  </span>
-                ))}
+            <p className="text-sm md:text-base leading-relaxed mb-6" style={{ color: THEME.textBody, fontFamily: THEME.fontFamily }}>
+              {certificate.description}
+            </p>
+
+            {certificate.skills?.length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs uppercase tracking-wide mb-2" style={{ color: THEME.accentLight, fontFamily: THEME.fontFamily }}>
+                  Skills
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {certificate.skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="text-xs px-3 py-1.5 rounded-full border"
+                      style={{ borderColor: THEME.borderStrong, color: THEME.accent, backgroundColor: `${THEME.accent}0D`, fontFamily: THEME.fontFamily }}
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {certificate.certificateUrl && (
-            <div className="flex items-center gap-3 pt-2">
-              
-                <a href={certificate.certificateUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg"
-                style={{ backgroundColor: THEME.textDark, color: THEME.accentLight, fontFamily: THEME.fontFamily }}
-              >
-                <LinkIcon /> Certificate
-              </a>
-            </div>
-          )}
+            {certificate.certificateUrl && (
+              <div className="flex items-center gap-3 pt-2">
+                <a
+                  href={certificate.certificateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg"
+                  style={{ backgroundColor: THEME.textDark, color: THEME.accentLight, fontFamily: THEME.fontFamily }}
+                >
+                  <LinkIcon /> Certificate
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

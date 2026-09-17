@@ -5,29 +5,18 @@ import { google_auth_font } from "./theme";
 
 export default function GoogleLoginCorner() {
   const [status, setStatus] = useState("checking"); // checking | idle | success | error
-  const [dismissed, setDismissed] = useState(false);
+  const [expanded, setExpanded] = useState(false); // is the hint line currently open
+  const [widgetDismissed, setWidgetDismissed] = useState(false); // resets to false on every reload — nothing persisted
 
-  // On mount, ask the backend if this browser already has a session cookie.
-  // If so, skip showing the card entirely — no re-login, no expiry.
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/google-login/session`, {
-      credentials: "include", // required so the cookie is sent/read
+      credentials: "include",
     })
       .then((res) => res.json())
       .then((data) => setStatus(data.loggedIn ? "success" : "idle"))
-      .catch(() => setStatus("idle")); // if the check fails, just show the card
+      .catch(() => setStatus("idle"));
   }, []);
 
-  // Log this visit regardless of whether they're signed in — the backend
-  // logs them as "Anonymous" (with IP) if there's no session cookie, or by
-  // name/email if there is one. Fire-and-forget: a logging failure should
-  // never affect the UI.
-  //
-  // Guarded with sessionStorage so this only ever fires once per tab. This
-  // matters for two reasons: (1) React StrictMode intentionally mounts
-  // every component twice in development, which would otherwise fire this
-  // effect — and the request — twice in a row; and (2) it also stops every
-  // re-mount/navigation within the same tab from logging a fresh row.
   useEffect(() => {
     if (sessionStorage.getItem("portfolio_visit_logged")) return;
     sessionStorage.setItem("portfolio_visit_logged", "1");
@@ -36,20 +25,20 @@ export default function GoogleLoginCorner() {
       method: "POST",
       credentials: "include",
     }).catch(() => {
-      // If the request itself failed, allow a retry on the next mount
-      // instead of permanently marking this tab as "already logged".
       sessionStorage.removeItem("portfolio_visit_logged");
     });
   }, []);
 
-  if (dismissed || status === "success" || status === "checking") return null;
+  // Nothing renders once logged in, still checking, OR once the user has
+  // dismissed the whole widget (logo included) for this page view.
+  if (status === "success" || status === "checking" || widgetDismissed) return null;
 
   const handleSuccess = async (credentialResponse) => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/google-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // required so the backend's Set-Cookie sticks
+        credentials: "include",
         body: JSON.stringify({ credential: credentialResponse.credential }),
       });
 
@@ -65,28 +54,26 @@ export default function GoogleLoginCorner() {
 
   const handleError = () => setStatus("error");
 
+  // ">" — opens the hint line
+  const handleOpen = () => setExpanded(true);
+
+  // "<" — closes just the line; the ">" toggle comes back so it can be reopened
+  const handleClose = () => setExpanded(false);
+
+  // "X" — dismisses the ENTIRE widget (logo + everything), for this page
+  // view only. Nothing is saved anywhere, so a reload brings it right back.
+  const handleDismiss = () => setWidgetDismissed(true);
+
   return (
     <div className="fixed top-4 left-4 z-50">
       <div
-        className="relative flex items-center gap-[clamp(0.5rem,1.5vw,0.75rem)] rounded-full border-2 border-[#4285F4]/20 bg-white px-[clamp(0.75rem,2vw,1.25rem)] py-[clamp(0.4rem,1.5vw,0.6rem)] pr-[clamp(1.75rem,4vw,2.25rem)] shadow-lg animate-[popIn_0.4s_ease-out]"
+        className="relative flex items-center gap-[clamp(0.15rem,0.6vw,0.3rem)] rounded-full border-2 border-[#4285F4]/20 bg-white pl-[clamp(0.75rem,2vw,1.25rem)] pr-[clamp(0.5rem,1.5vw,0.85rem)] py-[clamp(0.4rem,1.5vw,0.6rem)] shadow-lg animate-[popIn_0.4s_ease-out]"
         style={{ boxShadow: "0 6px 0 rgba(66,133,244,0.15), 0 10px 24px rgba(0,0,0,0.08)" }}
       >
-        <button
-          onClick={() => setDismissed(true)}
-          aria-label="Dismiss"
-          className="absolute right-[clamp(0.4rem,1.2vw,0.6rem)] top-1/2 -translate-y-1/2 flex h-4 w-4 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500"
-        >
-          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
-
         {/* Clickable logo — the real GoogleLogin button sits invisibly on top
-            of it so the actual ID-token flow still fires on click. The shake
-            keyframe pulses briefly every 3s to draw the eye, and yields to a
-            manual tilt+scale on hover. */}
+            of it so the actual ID-token flow fires on click. */}
         <div
-          className="relative shrink-0 h-[clamp(1.75rem,5vw,2.5rem)] w-[clamp(4.5rem,13vw,6.5rem)] cursor-pointer transition-transform duration-300 hover:scale-105 [animation:shake_3s_ease-in-out_infinite] hover:[animation-play-state:paused]"
+          className="relative shrink-0 h-[clamp(1.75rem,5vw,2.5rem)] w-[clamp(4rem,11vw,5.75rem)] cursor-pointer transition-transform duration-300 ease-out hover:scale-105 [animation:shake_3s_ease-in-out_infinite] hover:[animation-play-state:paused]"
         >
           <img
             src="https://res.cloudinary.com/udlemxig/image/upload/v1789470191/d5wl1j0-b0a1b5d6-6448-4147-85a6-32241e6aa6dd-removebg-preview.png"
@@ -99,12 +86,61 @@ export default function GoogleLoginCorner() {
           </div>
         </div>
 
-        <p
-          className="whitespace-nowrap text-[clamp(0.7rem,1.8vw,0.85rem)] leading-none text-[#4285F4]"
-          style={{ fontFamily: google_auth_font }}
+        {/* ">" — shown only when collapsed */}
+        {!expanded && (
+          <button
+            onClick={handleOpen}
+            aria-label="Show info"
+            className="flex h-[clamp(1.25rem,3.5vw,1.5rem)] w-[clamp(1.25rem,3.5vw,1.5rem)] shrink-0 items-center justify-center rounded-full text-[#4285F4] transition-all duration-300 ease-out hover:bg-[#4285F4]/10 active:scale-90"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+        )}
+
+        {/* Expandable hint line — holds both "<" (collapse) and "X" (dismiss whole widget) */}
+        <div
+          className="grid overflow-hidden transition-[grid-template-columns] duration-500 ease-in-out"
+          style={{ gridTemplateColumns: expanded ? "1fr" : "0fr" }}
         >
-          give the logo a click so we know it's you! ✨
-        </p>
+          <div className="min-w-0 overflow-hidden">
+            <div
+              className={`flex items-center gap-[clamp(0.4rem,1.2vw,0.6rem)] whitespace-nowrap pl-[clamp(0.25rem,1vw,0.5rem)] transition-opacity duration-500 ease-in-out ${
+                expanded ? "opacity-100 delay-150" : "opacity-0 delay-0"
+              }`}
+            >
+              {/* "<" — collapses the line, ">" comes back so it can reopen */}
+              <button
+                onClick={handleClose}
+                aria-label="Hide info"
+                className="flex h-[clamp(1.25rem,3.5vw,1.5rem)] w-[clamp(1.25rem,3.5vw,1.5rem)] shrink-0 items-center justify-center rounded-full text-[#4285F4] transition-all duration-300 ease-out hover:bg-[#4285F4]/10 active:scale-90"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 6l-6 6 6 6" />
+                </svg>
+              </button>
+
+              <p
+                className="whitespace-nowrap text-[clamp(0.7rem,1.8vw,0.85rem)] leading-none text-[#4285F4]"
+                style={{ fontFamily: google_auth_font }}
+              >
+                give the logo a click so we know it's you! ✨
+              </p>
+
+              {/* "X" — dismisses the entire widget, logo included */}
+              <button
+                onClick={handleDismiss}
+                aria-label="Dismiss"
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors duration-300 ease-out hover:bg-slate-100 hover:text-slate-500"
+              >
+                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
 
         {status === "error" && (
           <p className="whitespace-nowrap text-[clamp(0.6rem,1.5vw,0.7rem)] text-rose-400">

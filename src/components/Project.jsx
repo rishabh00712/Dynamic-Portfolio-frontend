@@ -39,7 +39,14 @@ function GithubIcon() {
 
 function ChevronIcon({ expanded }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform duration-300 ease-in-out" style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="transition-transform duration-200 ease-out"
+      style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
+    >
       <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -82,7 +89,7 @@ const CATEGORY_ICONS = [
 /* ---------- Icon button used in the card footer ---------- */
 
 function IconAction({ label, onClick, href, children }) {
-  const sharedClass = "w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 border";
+  const sharedClass = "w-9 h-9 rounded-lg flex items-center justify-center transition-colors duration-200 border";
   const sharedStyle = { color: THEME.accent, borderColor: THEME.borderStrong, backgroundColor: `${THEME.accent}0D` };
 
   const handleEnter = (e) => {
@@ -96,8 +103,8 @@ function IconAction({ label, onClick, href, children }) {
 
   if (href) {
     return (
-      
-        <a href={href}
+      <a
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={label}
@@ -135,7 +142,7 @@ function ProjectCard({ project, onOpenDetails }) {
   return (
     <div
       onClick={() => onOpenDetails(project)}
-      className="rounded-xl overflow-hidden border flex flex-col cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+      className="rounded-xl overflow-hidden border flex flex-col cursor-pointer transition-transform duration-200 hover:shadow-lg hover:-translate-y-0.5"
       style={{ borderColor: THEME.border, backgroundColor: THEME.cardBg }}
     >
       <div className="w-full h-44 md:h-48 overflow-hidden" style={{ backgroundColor: THEME.textDark }}>
@@ -188,7 +195,7 @@ function ProjectGrid({ projects, onOpenDetails }) {
   );
 }
 
-/* ---------- Collapsible category block — now a proper card, not bare text ---------- */
+/* ---------- Collapsible category block — smooth on mobile via grid-template-rows ---------- */
 
 function CategorySection({ label, projects, isExpanded, onToggle, onOpenDetails, iconIndex }) {
   const count = projects?.length ?? 0;
@@ -196,7 +203,7 @@ function CategorySection({ label, projects, isExpanded, onToggle, onOpenDetails,
 
   return (
     <div
-      className="rounded-2xl border overflow-hidden transition-all duration-300"
+      className="rounded-2xl border overflow-hidden transition-colors duration-300"
       style={{
         borderColor: isExpanded ? THEME.borderStrong : THEME.border,
         backgroundColor: THEME.cardBg,
@@ -239,19 +246,29 @@ function CategorySection({ label, projects, isExpanded, onToggle, onOpenDetails,
         </span>
       </button>
 
+      {/*
+        Smooth expand/collapse using the CSS grid 0fr -> 1fr trick instead of
+        max-height. This always animates proportional to the REAL content
+        height (no huge arbitrary max-height like 4000px), which is what was
+        causing the slow/laggy feel on mobile: with max-height, most of the
+        ease-in-out curve was "wasted" animating through empty space.
+        will-change hints the browser to use the compositor where possible.
+      */}
       <div
-        className="overflow-hidden transition-all duration-500 ease-in-out"
-        style={{ maxHeight: isExpanded ? "4000px" : "0px", opacity: isExpanded ? 1 : 0 }}
+        className="grid transition-[grid-template-rows] duration-300 ease-out"
+        style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr", willChange: "grid-template-rows" }}
       >
-        <div className="px-5 pb-6 pt-2 md:px-6 md:pb-7" style={{ borderTop: `1px solid ${THEME.border}` }}>
-          <div className="pt-5">
-            {count > 0 ? (
-              <ProjectGrid projects={projects} onOpenDetails={onOpenDetails} />
-            ) : (
-              <p className="text-sm" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
-                Nothing here yet.
-              </p>
-            )}
+        <div className="overflow-hidden min-h-0">
+          <div className="px-5 pb-6 pt-2 md:px-6 md:pb-7" style={{ borderTop: `1px solid ${THEME.border}` }}>
+            <div className="pt-5">
+              {count > 0 ? (
+                <ProjectGrid projects={projects} onOpenDetails={onOpenDetails} />
+              ) : (
+                <p className="text-sm" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
+                  Nothing here yet.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -260,7 +277,13 @@ function CategorySection({ label, projects, isExpanded, onToggle, onOpenDetails,
 }
 
 /* ---------- Detail modal ---------- */
-
+/*
+  z-[9999] + backdrop-blur-lg guarantees this sits above EVERY other fixed
+  element on the page (hamburger menu, sticky nav, etc.) and visually blurs
+  everything behind it. Keep any nav/hamburger z-index well below this
+  (e.g. z-40/z-50) so there's one clear stacking hierarchy:
+  page content < sticky nav < this modal.
+*/
 function ProjectModal({ project, onClose }) {
   useEffect(() => {
     document.body.style.overflow = project ? "hidden" : "";
@@ -273,90 +296,98 @@ function ProjectModal({ project, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 backdrop-blur-md"
       style={{ backgroundColor: "rgba(15,31,27,0.55)" }}
       onClick={onClose}
     >
+      {/*
+        Outer wrapper does NOT scroll — it just clips corners with overflow-hidden.
+        The × button lives here, as a direct child of this non-scrolling wrapper,
+        so it stays visually pinned in place no matter how far the inner content
+        is scrolled. Only the inner div below scrolls.
+      */}
       <div
-        className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl"
+        className="relative w-full max-w-lg max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden"
         style={{ backgroundColor: THEME.cardBg }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-full h-48 md:h-56 overflow-hidden" style={{ backgroundColor: THEME.textDark }}>
-          <img src={project.image} alt={project.name} className="w-full h-full object-cover" />
-        </div>
-
         <button
           aria-label="Close"
           onClick={onClose}
-          className="absolute top-4 right-4 w-9 h-9 rounded-full shadow-md flex items-center justify-center text-lg"
+          className="absolute top-4 right-6 z-10 w-9 h-9 rounded-full shadow-md flex items-center justify-center text-lg"
           style={{ backgroundColor: THEME.cardBg, color: THEME.textDark }}
         >
           ×
         </button>
 
-        <div className="p-6 md:p-7">
-          <h3 className="text-xl md:text-2xl font-extrabold mb-4" style={{ color: THEME.textDark, fontFamily: THEME.fontFamily }}>
-            {project.name}
-          </h3>
+        <div className="max-h-[85vh] overflow-y-auto">
+          <div className="w-full h-48 md:h-56 overflow-hidden" style={{ backgroundColor: THEME.textDark }}>
+            <img src={project.image} alt={project.name} className="w-full h-full object-cover" />
+          </div>
 
-          <p className="text-sm md:text-base leading-relaxed mb-6" style={{ color: THEME.textBody, fontFamily: THEME.fontFamily }}>
-            {project.description}
-          </p>
+          <div className="p-6 md:p-7">
+            <h3 className="text-xl md:text-2xl font-extrabold mb-4" style={{ color: THEME.textDark, fontFamily: THEME.fontFamily }}>
+              {project.name}
+            </h3>
 
-          {project.techStack?.length > 0 && (
-            <div className="mb-6">
-              <p className="text-xs uppercase tracking-wide mb-2" style={{ color: THEME.accentLight, fontFamily: THEME.fontFamily }}>
-                Tech stack
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {project.techStack.map((tech) => (
-                  <span
-                    key={tech}
-                    className="text-xs px-3 py-1.5 rounded-full border"
-                    style={{ borderColor: THEME.borderStrong, color: THEME.accent, backgroundColor: `${THEME.accent}0D`, fontFamily: THEME.fontFamily }}
-                  >
-                    {tech}
-                  </span>
-                ))}
+            <p className="text-sm md:text-base leading-relaxed mb-6" style={{ color: THEME.textBody, fontFamily: THEME.fontFamily }}>
+              {project.description}
+            </p>
+
+            {project.techStack?.length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs uppercase tracking-wide mb-2" style={{ color: THEME.accentLight, fontFamily: THEME.fontFamily }}>
+                  Tech stack
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {project.techStack.map((tech) => (
+                    <span
+                      key={tech}
+                      className="text-xs px-3 py-1.5 rounded-full border"
+                      style={{ borderColor: THEME.borderStrong, color: THEME.accent, backgroundColor: `${THEME.accent}0D`, fontFamily: THEME.fontFamily }}
+                    >
+                      {tech}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-
-          {project.why && (
-            <div className="mb-6">
-              <p className="text-xs uppercase tracking-wide mb-2" style={{ color: THEME.accentLight, fontFamily: THEME.fontFamily }}>
-                Why I built this
-              </p>
-              <p className="text-sm leading-relaxed" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
-                {project.why}
-              </p>
-            </div>
-          )}
-
-          <div className="flex items-center gap-3 pt-2">
-            {project.liveUrl && (
-              
-                <a href={project.liveUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg"
-                style={{ backgroundColor: THEME.textDark, color: THEME.accentLight, fontFamily: THEME.fontFamily }}
-              >
-                <LinkIcon /> Live demo
-              </a>
             )}
-            {project.githubUrl && (
-              
-                <a href={project.githubUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg border"
-                style={{ borderColor: THEME.borderStrong, color: THEME.accent, fontFamily: THEME.fontFamily }}
-              >
-                <GithubIcon /> Source
-              </a>
+
+            {project.why && (
+              <div className="mb-6">
+                <p className="text-xs uppercase tracking-wide mb-2" style={{ color: THEME.accentLight, fontFamily: THEME.fontFamily }}>
+                  Why I built this
+                </p>
+                <p className="text-sm leading-relaxed" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
+                  {project.why}
+                </p>
+              </div>
             )}
+
+            <div className="flex items-center gap-3 pt-2">
+              {project.liveUrl && (
+                <a
+                  href={project.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg"
+                  style={{ backgroundColor: THEME.textDark, color: THEME.accentLight, fontFamily: THEME.fontFamily }}
+                >
+                  <LinkIcon /> Live demo
+                </a>
+              )}
+              {project.githubUrl && (
+                <a
+                  href={project.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg border"
+                  style={{ borderColor: THEME.borderStrong, color: THEME.accent, fontFamily: THEME.fontFamily }}
+                >
+                  <GithubIcon /> Source
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>

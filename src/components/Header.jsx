@@ -1255,7 +1255,6 @@ export default function Header() {
             />
             <img
               src={imageUrl}
-              alt={headerInfo?.name || "Profile"}
               className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-72 md:h-72 lg:w-80 lg:h-80 rounded-full object-cover border-4"
               style={{
                 borderColor: THEME.sectionBgHeader,
@@ -1387,7 +1386,7 @@ export default function Header() {
       <button
         onClick={() => goToSection("about")}
         aria-label="Scroll to About section"
-        className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-xs"
+        className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-xs"
         style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}
       >
         <span className="tracking-[0.2em] uppercase">Scroll</span>

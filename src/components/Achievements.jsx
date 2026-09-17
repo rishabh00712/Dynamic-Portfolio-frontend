@@ -28,7 +28,14 @@ function TrophyIcon() {
 
 function ChevronIcon({ expanded }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform duration-300 ease-in-out" style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="transition-transform duration-200 ease-out"
+      style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
+    >
       <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -89,8 +96,8 @@ function AchievementCard({ achievement, iconIndex }) {
 
       {achievement.link && (
         <div className="pt-4 mt-4 border-t" style={{ borderColor: THEME.border }}>
-          
-            <a href={achievement.link}
+          <a
+            href={achievement.link}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-xs md:text-sm px-3.5 py-2 rounded-lg border transition-all duration-200"
@@ -124,7 +131,7 @@ function AchievementGrid({ achievements }) {
   );
 }
 
-/* ---------- Collapsible category block — proper card treatment ---------- */
+/* ---------- Collapsible category block — smooth on mobile via grid-template-rows ---------- */
 
 function CategorySection({ label, achievements, isExpanded, onToggle, iconIndex }) {
   const count = achievements?.length ?? 0;
@@ -132,7 +139,7 @@ function CategorySection({ label, achievements, isExpanded, onToggle, iconIndex 
 
   return (
     <div
-      className="rounded-2xl border overflow-hidden transition-all duration-300"
+      className="rounded-2xl border overflow-hidden transition-colors duration-300"
       style={{
         borderColor: isExpanded ? THEME.borderStrong : THEME.border,
         backgroundColor: THEME.cardBg,
@@ -175,19 +182,27 @@ function CategorySection({ label, achievements, isExpanded, onToggle, iconIndex 
         </span>
       </button>
 
+      {/*
+        Smooth expand/collapse using the CSS grid 0fr -> 1fr trick instead of
+        max-height. Always animates proportional to the REAL content height
+        (no arbitrary max-height like 4000px), which is what fixes the
+        slow/laggy feel on mobile.
+      */}
       <div
-        className="overflow-hidden transition-all duration-500 ease-in-out"
-        style={{ maxHeight: isExpanded ? "4000px" : "0px", opacity: isExpanded ? 1 : 0 }}
+        className="grid transition-[grid-template-rows] duration-300 ease-out"
+        style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr", willChange: "grid-template-rows" }}
       >
-        <div className="px-5 pb-6 pt-2 md:px-6 md:pb-7" style={{ borderTop: `1px solid ${THEME.border}` }}>
-          <div className="pt-5">
-            {count > 0 ? (
-              <AchievementGrid achievements={achievements} />
-            ) : (
-              <p className="text-sm" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
-                Nothing here yet.
-              </p>
-            )}
+        <div className="overflow-hidden min-h-0">
+          <div className="px-5 pb-6 pt-2 md:px-6 md:pb-7" style={{ borderTop: `1px solid ${THEME.border}` }}>
+            <div className="pt-5">
+              {count > 0 ? (
+                <AchievementGrid achievements={achievements} />
+              ) : (
+                <p className="text-sm" style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}>
+                  Nothing here yet.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
