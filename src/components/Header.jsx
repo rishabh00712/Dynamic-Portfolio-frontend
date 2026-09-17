@@ -1383,17 +1383,20 @@ export default function Header() {
       </div>
 
       {/* Scroll cue */}
-      <button
-        onClick={() => goToSection("about")}
-        aria-label="Scroll to About section"
-        className="absolute bottom-2 sm:bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-xs"
-        style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}
-      >
-        <span className="tracking-[0.2em] uppercase">Scroll</span>
-        <span className="animate-bounce" style={{ color: THEME.accent }}>
-          ↓
-        </span>
-      </button>
+           {/* Scroll cue — hidden on mobile, only shown from md breakpoint up */}
+      {!isMobile && (
+        <button
+          onClick={() => goToSection("about")}
+          aria-label="Scroll to About section"
+          className="absolute bottom-2 sm:bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-xs"
+          style={{ color: THEME.textMuted, fontFamily: THEME.fontFamily }}
+        >
+          <span className="tracking-[0.2em] uppercase">Scroll</span>
+          <span className="animate-bounce" style={{ color: THEME.accent }}>
+            ↓
+          </span>
+        </button>
+      )}
 
       <style>{`
         @keyframes blink {

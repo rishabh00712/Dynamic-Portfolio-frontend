@@ -4,6 +4,7 @@ import { BACKEND_URL } from "./apiConfig";
 
 const STORAGE_KEY = "ej_last_reaction";
 const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const AUTO_CLOSE_MS = 10000; // auto-collapse the bar 10s after it's opened
 
 const REACTIONS = [
   { type: "wow", emoji: "🤩", label: "Wow", tooltip: "Utterly dazzling!", from: THEME.C2, to: THEME.C1 },
@@ -65,8 +66,6 @@ export default function EmojiBar() {
 
   const isLocked = cooldownRemaining > 0;
 
-  // Whichever reaction should show in the collapsed preview button:
-  // the user's chosen reaction if they've reacted, otherwise the default 🤩 (wow).
   const previewReaction = useMemo(() => {
     if (lastReaction) {
       return REACTIONS.find((r) => r.type === lastReaction.type) || REACTIONS[0];
@@ -101,6 +100,15 @@ export default function EmojiBar() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  // Auto-close the bar 10s after it's opened. Cleared automatically (via the
+  // effect cleanup) if the user closes it earlier or the component unmounts,
+  // and re-armed each time `expanded` flips back to true.
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const id = window.setTimeout(() => setExpanded(false), AUTO_CLOSE_MS);
+    return () => window.clearTimeout(id);
+  }, [expanded]);
 
   const handleReact = useCallback(async (type) => {
     if (isLocked || isSaving) return;
@@ -140,10 +148,7 @@ export default function EmojiBar() {
     }
   }, [isLocked, isSaving, reactions, lastReaction]);
 
-  // ">" — expands the bar to show all reaction options
   const handleOpen = () => setExpanded(true);
-
-  // "<" — collapses back to just the single preview emoji + ">"
   const handleClose = () => setExpanded(false);
 
   if (isDismissed) return null;
@@ -166,8 +171,7 @@ export default function EmojiBar() {
           font-family: var(--ej-fancy-font);
           color: var(--ej-dark);
           max-width: calc(100vw - 10px);
-          /* extra top clearance so the count badges never get clipped */
-          padding-top: 14px;
+          padding-top: 16px;
         }
         .ej-bar {
           position: relative;
@@ -234,11 +238,11 @@ export default function EmojiBar() {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: clamp(30px, 8vw, 40px);
-          height: clamp(30px, 8vw, 40px);
+          width: clamp(35px, 8vw, 45px);
+          height: clamp(35px, 8vw, 45px);
           border: none;
           border-radius: 50%;
-          font-size: clamp(15px, 4vw, 20px);
+          font-size: clamp(20px, 4vw, 25px);
           line-height: 1;
           cursor: pointer;
           background: ${THEME.fieldBg};
@@ -269,7 +273,6 @@ export default function EmojiBar() {
           70% { transform: scale(.92) rotate(4deg); }
           100% { transform: scale(1) rotate(0); }
         }
-        /* Tooltip — sits above the emoji, shown on hover/focus */
         .ej-tooltip {
           position: absolute;
           bottom: calc(100% + 10px);
@@ -303,23 +306,27 @@ export default function EmojiBar() {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
         }
+        /* Count badge — pushed fully outside the emoji circle so it never
+           overlaps the face, with pointer-events: none so it can't block
+           hover/click on the button beneath it. */
         .ej-count-dot {
           position: absolute;
-          top: -8px;
-          right: -6px;
-          min-width: 17px;
-          height: 17px;
+          top: -10px;
+          right: -8px;
+          min-width: 16px;
+          height: 16px;
           padding: 0 4px;
           border-radius: 999px;
           background: var(--ej-dark);
           color: #fff;
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 700;
           font-family: var(--ej-fancy-font);
           display: flex;
           align-items: center;
           justify-content: center;
-          /* no ring around this badge anymore — it was covering the number */
+          pointer-events: none;
+          z-index: 2;
         }
         .ej-divider {
           width: 1.5px;
@@ -360,24 +367,28 @@ export default function EmojiBar() {
         }
 
         /* Smooth expand/collapse for the reaction options + total chip.
-           Animates via grid-template-columns so it grows to fit its own
-           content on any screen size without a hard-coded width guess. */
+           The WRAP clips horizontally during the width animation (needed so
+           content doesn't spill out while collapsed/collapsing). The INNER
+           must stay overflow:visible at all times, or tooltips popping
+           upward and count badges poking outward get clipped/squashed once
+           the bar is open — that was the actual bug causing both the
+           missing tooltip and the badges appearing to cover the emojis. */
         .ej-expand-wrap {
           display: grid;
           overflow: hidden;
           transition: grid-template-columns .5s ease-in-out;
+        }
+        .ej-expand-wrap.is-open {
+          overflow: visible;
         }
         .ej-expand-inner {
           display: flex;
           align-items: center;
           gap: clamp(4px, 1.2vw, 6px);
           min-width: 0;
-          overflow: hidden;
+          overflow: visible;
           opacity: 0;
           transition: opacity .5s ease-in-out;
-        }
-        .ej-expand-wrap.is-open {
-          overflow: visible;
         }
         .ej-expand-wrap.is-open .ej-expand-inner {
           opacity: 1;
@@ -385,22 +396,21 @@ export default function EmojiBar() {
         }
 
         @media (max-width: 600px) {
-          .ej-root { left: 25px; bottom: 25px; padding-top: 12px; }
+          .ej-root { left: 25px; bottom: 25px; padding-top: 14px; }
           .ej-bar { gap: 3px; padding: 9px 7px 6px; }
-          .ej-emoji-btn { width: 30px; height: 30px; font-size: 15px; }
+          .ej-emoji-btn { width: 38px; height: 38px; font-size: 23px; }
           .ej-close-btn { width: 17px; height: 17px; font-size: 10px; }
           .ej-toggle-btn { width: 17px; height: 17px; }
           .ej-toggle-btn svg { width: 12px; height: 12px; }
-          .ej-count-dot { min-width: 14px; height: 14px; font-size: 8px; top: -7px; right: -5px; }
-          .ej-total-chip { font-size: 10px; padding: 0 5px; }
+          .ej-count-dot { min-width: 13px; height: 13px; font-size: 8px; top: -8px; right: -6px; }
+          .ej-total-chip { display: none; }
           .ej-tooltip { font-size: 10px; padding: 4px 7px; }
-          /* Cooldown "Next in..." text hidden on mobile only */
           .ej-cooldown-chip { display: none; }
         }
 
         @media (max-width: 340px) {
           .ej-bar { padding: 8px 6px 5px; gap: 2px; }
-          .ej-emoji-btn { width: 25px; height: 25px; font-size: 12px; }
+          .ej-emoji-btn { width: 33px; height: 33px; font-size: 20px; }
           .ej-total-chip { font-size: 9px; padding: 0 4px; }
         }
 
@@ -410,7 +420,6 @@ export default function EmojiBar() {
       `}</style>
 
       <div className="ej-bar" role="group" aria-label="React to this">
-        {/* Collapsed preview: the chosen reaction's emoji, or 🤩 by default */}
         {!expanded && (
           <button
             type="button"
@@ -428,7 +437,6 @@ export default function EmojiBar() {
           </button>
         )}
 
-        {/* ">" — only shown while collapsed */}
         {!expanded && (
           <button
             type="button"
@@ -442,7 +450,6 @@ export default function EmojiBar() {
           </button>
         )}
 
-        {/* Expandable section: "<" + all 5 reactions + total/cooldown + dismiss */}
         <div className={`ej-expand-wrap${expanded ? " is-open" : ""}`} style={{ gridTemplateColumns: expanded ? "1fr" : "0fr" }}>
           <div className="ej-expand-inner">
             <button
@@ -460,11 +467,6 @@ export default function EmojiBar() {
               const isSelected = lastReaction?.type === reaction.type;
               const disableThis = (isLocked && !isSelected) || isSaving;
               const count = reactions[reaction.type];
-              const tooltipText = isSelected && isLocked
-                ? `${reaction.tooltip} · back in ${formatRemaining(cooldownRemaining)}`
-                : isLocked
-                  ? `Try again in ${formatRemaining(cooldownRemaining)}`
-                  : reaction.tooltip;
 
               return (
                 <button
@@ -483,7 +485,7 @@ export default function EmojiBar() {
                   onClick={() => handleReact(reaction.type)}
                 >
                   {reaction.emoji}
-                  <span className="ej-tooltip" role="tooltip">{tooltipText}</span>
+                  <span className="ej-tooltip" role="tooltip">{reaction.tooltip}</span>
                   {count > 0 && <span className="ej-count-dot" aria-hidden="true">{count > 99 ? "99+" : count}</span>}
                 </button>
               );
@@ -492,7 +494,6 @@ export default function EmojiBar() {
             <div className="ej-divider" aria-hidden="true" />
             <span className="ej-total-chip">{loading ? "…" : `${total} react${total === 1 ? "" : "s"}`}</span>
 
-            {/* Cooldown countdown — visible on desktop/tablet, hidden on mobile via media query above */}
             {isLocked && (
               <span className="ej-cooldown-chip">Next in {formatRemaining(cooldownRemaining)}</span>
             )}

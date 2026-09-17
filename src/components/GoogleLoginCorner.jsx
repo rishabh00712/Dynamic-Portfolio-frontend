@@ -66,13 +66,15 @@ export default function GoogleLoginCorner() {
   return (
     <div className="fixed top-4 left-4 z-50">
       <div
-        className="relative flex items-center gap-[clamp(0.15rem,0.6vw,0.3rem)] rounded-full border-2 border-[#16A34A]/20 bg-white pl-[clamp(0.75rem,2vw,1.25rem)] pr-[clamp(0.5rem,1.5vw,0.85rem)] py-[clamp(0.4rem,1.5vw,0.6rem)] shadow-lg animate-[popIn_0.4s_ease-out]"
-        style={{ boxShadow: "0 6px 0 rgba(22,163,74,0.15), 0 10px 24px rgba(0,0,0,0.08)" }}
+        className="relative flex items-center gap-[clamp(4px,1.2vw,6px)] rounded-full border-2 border-white bg-white pl-[clamp(0.75rem,2vw,1.25rem)] pr-[clamp(0.5rem,1.5vw,0.85rem)] py-[clamp(0.4rem,1.5vw,0.6rem)] animate-[popIn_0.4s_ease-out]"
+        style={{ boxShadow: "0 6px 16px rgba(15,31,27,.14)" }}
       >
         {/* Clickable logo — the real GoogleLogin button sits invisibly on top
-            of it so the actual ID-token flow fires on click. Same on all screens. */}
+            of it so the actual ID-token flow fires on click. Bigger on mobile
+            only (base, unprefixed size); sm: and up resets to the original
+            size so tablet/desktop are untouched. */}
         <div
-          className="relative shrink-0 h-[clamp(2.05rem,5.3vw,2.8rem)] w-[clamp(4.3rem,11.3vw,6.05rem)] cursor-pointer transition-transform duration-300 ease-out hover:scale-105 [animation:shake_3s_ease-in-out_infinite] hover:[animation-play-state:paused]"
+          className="relative shrink-0 h-[clamp(calc(2.05rem+7px),5.3vw,calc(2.8rem+7px))] w-[clamp(calc(4.3rem+7px),11.3vw,calc(6.05rem+7px))] sm:h-[clamp(2.05rem,5.3vw,2.8rem)] sm:w-[clamp(4.3rem,11.3vw,6.05rem)] cursor-pointer transition-transform duration-300 ease-out hover:scale-105 [animation:shake_3s_ease-in-out_infinite] hover:[animation-play-state:paused]"
         >
           <img
             src="https://res.cloudinary.com/udlemxig/image/upload/v1789470191/d5wl1j0-b0a1b5d6-6448-4147-85a6-32241e6aa6dd-removebg-preview.png"
@@ -131,7 +133,7 @@ export default function GoogleLoginCorner() {
               </button>
 
               <p
-                className="whitespace-nowrap text-[clamp(0.7rem,1.8vw,0.85rem)] leading-none text-[#16A34A]"
+                className="whitespace-nowrap text-[clamp(0.7rem,1.8vw,0.85rem)] leading-none text-slate-500"
                 style={{ fontFamily: google_auth_font }}
               >
                 give the logo a click so we know it's you! ✨
