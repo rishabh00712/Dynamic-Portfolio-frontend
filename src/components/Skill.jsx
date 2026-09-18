@@ -114,9 +114,12 @@ function buildSkillIndex(dataBySection) {
    On mobile (< md) the panel is a fixed, centered overlay with a dimmed
    backdrop — an absolutely-positioned dropdown anchored to the chip runs
    off-screen on narrow viewports, which is why it looked broken on mobile.
-   From md upward it reverts to the original anchored dropdown. --------- */
+   From md upward it reverts to an anchored dropdown, whose anchor side
+   (left or right of the chip) is controlled by the `align` prop so
+   right-column categories can open toward the left instead of running
+   off the edge of the page. --------- */
 
-function SkillChip({ skill, matches, isOpen, onToggle }) {
+function SkillChip({ skill, matches, isOpen, onToggle, align = "left" }) {
   const hasMatches = matches && matches.length > 0;
 
   return (
@@ -165,7 +168,9 @@ function SkillChip({ skill, matches, isOpen, onToggle }) {
           />
 
           <div
-            className="fixed left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 w-[min(90vw,320px)] rounded-xl border bg-white shadow-xl overflow-hidden md:absolute md:left-0 md:top-full md:mt-2 md:translate-x-0 md:translate-y-0 md:w-auto md:min-w-[260px] md:max-w-[320px]"
+            className={`fixed left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 w-[min(90vw,320px)] rounded-xl border bg-white shadow-xl overflow-hidden md:absolute md:top-full md:mt-2 md:translate-x-0 md:translate-y-0 md:w-auto md:min-w-[260px] md:max-w-[320px] ${
+              align === "right" ? "md:right-0 md:left-auto" : "md:left-0"
+            }`}
             style={{ borderColor: `${THEME.accent}33` }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -232,9 +237,9 @@ function SkillChip({ skill, matches, isOpen, onToggle }) {
   );
 }
 
-/* ---------- One skill category card (Languages, Databases, ...) ---------- */
+/* ---------- One skill category card (Languages, Libraries, ...) ---------- */
 
-function SkillCategory({ category, skillIndex, activeChip, onToggleChip }) {
+function SkillCategory({ category, skillIndex, activeChip, onToggleChip, align }) {
   return (
     <div className="rounded-xl border bg-white p-5 md:p-6" style={{ borderColor: THEME.border }}>
       <div className="flex items-center gap-3 mb-4">
@@ -253,6 +258,7 @@ function SkillCategory({ category, skillIndex, activeChip, onToggleChip }) {
               matches={skillIndex[normalize(skill)]}
               isOpen={activeChip === chipKey}
               onToggle={() => onToggleChip(activeChip === chipKey ? null : chipKey)}
+              align={align}
             />
           );
         })}
@@ -359,13 +365,14 @@ export default function Skills() {
           <LoadingSkeleton />
         ) : (
           <div className="grid sm:grid-cols-2 gap-5">
-            {skillCategories.map((category) => (
+            {skillCategories.map((category, idx) => (
               <SkillCategory
                 key={category.id}
                 category={category}
                 skillIndex={skillIndex}
                 activeChip={activeChip}
                 onToggleChip={setActiveChip}
+                align={idx % 2 === 0 ? "left" : "right"}
               />
             ))}
           </div>

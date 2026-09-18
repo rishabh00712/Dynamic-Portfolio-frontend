@@ -20,6 +20,42 @@ const NAV_LINKS = [
   { label: "Resume", id: "resume" },
 ];
 
+/* ---------- Loading spinner + full-page loading overlay ---------- */
+
+function Spinner({ size = 28, color = THEME.accent, trackColor = `${THEME.accent}22` }) {
+  return (
+    <span
+      className="inline-block rounded-full animate-spin"
+      style={{
+        width: size,
+        height: size,
+        border: `2.5px solid ${trackColor}`,
+        borderTopColor: color,
+      }}
+    />
+  );
+}
+
+// Full-screen blur + spinner shown while the page's initial data (the
+// profile image) is still loading. Fades out once ready.
+function PageLoadingOverlay({ visible }) {
+  return (
+    <div
+      aria-hidden={!visible}
+      className="fixed inset-0 z-[200] flex items-center justify-center transition-opacity duration-500 ease-in-out"
+      style={{
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? "auto" : "none",
+        backgroundColor: `${THEME.sectionBgHeader}CC`,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+      }}
+    >
+      <Spinner size={44} />
+    </div>
+  );
+}
+
 /* ---------- Social icons — only rendered when backend supplies that id + url ---------- */
 
 function GithubIcon() {
@@ -1090,9 +1126,14 @@ function FluidBackground({ pointerRef, isScrollingRef }) {
 
 export default function Header() {
   const [imageUrl, setImageUrl] = useState(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [headerInfo, setHeaderInfo] = useState(null); // { name, roles, tagline, socials, work }
   const [infoError, setInfoError] = useState(false);
+
+  // Page is "ready" once the profile image has actually finished loading
+  // (or its fetch/decode failed — don't block the page forever on that).
+  const pageReady = imageLoaded;
 
   const activeSection = useActiveSection(NAV_LINKS.map((l) => l.id));
   const hamburgerVisible = useHideOnScroll();
@@ -1130,7 +1171,10 @@ export default function Header() {
         return res.json();
       })
       .then((data) => setImageUrl(data.url))
-      .catch(() => console.error("Could not load profile image"));
+      .catch(() => {
+        console.error("Could not load profile image");
+        setImageLoaded(true); // don't block the page forever if this fails
+      });
   }, []);
 
   useEffect(() => {
@@ -1167,6 +1211,8 @@ export default function Header() {
       className="relative w-full min-h-screen flex items-center overflow-hidden"
       style={{ backgroundColor: THEME.sectionBgHeader }}
     >
+      {/* Full-page blur + spinner shown until the profile image has loaded */}
+      <PageLoadingOverlay visible={!pageReady} />
 
       <div
         className="absolute inset-0 pointer-events-none"
@@ -1297,18 +1343,33 @@ export default function Header() {
               className="absolute -inset-3 rounded-full opacity-20"
               style={{ background: `linear-gradient(135deg, ${THEME.accent}, ${THEME.accentLight})` }}
             />
-            <img
-              src={imageUrl}
-              className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-72 md:h-72 lg:w-80 lg:h-80 rounded-full object-cover border-4"
-              style={{
-                borderColor: THEME.sectionBgHeader,
-                boxShadow: `0 0 0 2px ${THEME.accent}33`,
-                transform: `rotateX(${imgTilt.rx}deg) rotateY(${imgTilt.ry}deg) scale(${imgTilt.scale})`,
-                transition: "transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)",
-                transformStyle: "preserve-3d",
-                willChange: "transform",
-              }}
-            />
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageLoaded(true)}
+                className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-72 md:h-72 lg:w-80 lg:h-80 rounded-full object-cover border-4"
+                style={{
+                  borderColor: THEME.sectionBgHeader,
+                  boxShadow: `0 0 0 2px ${THEME.accent}33`,
+                  transform: `rotateX(${imgTilt.rx}deg) rotateY(${imgTilt.ry}deg) scale(${imgTilt.scale})`,
+                  transition: "transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)",
+                  transformStyle: "preserve-3d",
+                  willChange: "transform",
+                }}
+              />
+            ) : (
+              <div
+                className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-72 md:h-72 lg:w-80 lg:h-80 rounded-full flex items-center justify-center border-4"
+                style={{
+                  borderColor: THEME.sectionBgHeader,
+                  backgroundColor: THEME.fieldBg,
+                  boxShadow: `0 0 0 2px ${THEME.accent}33`,
+                }}
+              >
+                <Spinner size={32} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -1441,6 +1502,5 @@ export default function Header() {
         }
       `}</style>
     </section>
-
   );
 }
