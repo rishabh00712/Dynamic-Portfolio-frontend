@@ -91,9 +91,17 @@ export default function GoogleLoginCorner() {
     if (sessionStorage.getItem("portfolio_visit_logged")) return;
     sessionStorage.setItem("portfolio_visit_logged", "1");
 
+    // Send the localStorage identity as a fallback in case the session
+    // cookie doesn't make it to the server (mobile browsers blocking
+    // cross-site cookies). The backend prefers the cookie when present and
+    // only falls back to this if there's no cookie.
+    const stored = readStoredIdentity();
+
     fetch(`${BACKEND_URL}/api/track-visit`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
+      body: JSON.stringify(stored ? { name: stored.name, email: stored.email } : {}),
     }).catch(() => {
       sessionStorage.removeItem("portfolio_visit_logged");
     });
