@@ -173,7 +173,8 @@ export default function EmojiBar() {
           max-width: calc(100vw - 10px);
           padding-top: 16px;
         }
-        .ej-bar {
+        
+         .ej-bar {
           position: relative;
           display: flex;
           align-items: center;
@@ -184,7 +185,26 @@ export default function EmojiBar() {
           background: ${THEME.cardBg};
           box-shadow: 0 6px 16px rgba(15,31,27,.14);
           overflow: visible;
+          transition: opacity .35s ease, box-shadow .35s ease,
+                      backdrop-filter .35s ease, -webkit-backdrop-filter .35s ease;
         }
+        /* Collapsed (only the preview emoji + ">"): dimmed + frosted so it
+           stays quiet and doesn't highlight itself on the page. */
+        .ej-bar.is-collapsed {
+          opacity: .5;
+          backdrop-filter: blur(5px);
+          -webkit-backdrop-filter: blur(5px);
+          box-shadow: 0 4px 12px rgba(15,31,27,.07);
+        }
+        /* Restore full visibility when the user actually interacts with it */
+        .ej-bar.is-collapsed:hover,
+        .ej-bar.is-collapsed:focus-within {
+          opacity: 1;
+          backdrop-filter: blur(0px);
+          -webkit-backdrop-filter: blur(0px);
+          box-shadow: 0 6px 16px rgba(15,31,27,.14);
+        }
+
         .ej-close-btn {
           display: flex;
           align-items: center;
@@ -196,7 +216,7 @@ export default function EmojiBar() {
           border-radius: 50%;
           background: ${THEME.fieldBg};
           color: ${THEME.textMuted};
-          font-family: var(--ej-fancy-font);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
           font-size: 13px;
           line-height: 1;
           cursor: pointer;
@@ -419,7 +439,7 @@ export default function EmojiBar() {
         }
       `}</style>
 
-      <div className="ej-bar" role="group" aria-label="React to this">
+            <div className={`ej-bar${expanded ? "" : " is-collapsed"}`} role="group" aria-label="React to this">
         {!expanded && (
           <button
             type="button"
