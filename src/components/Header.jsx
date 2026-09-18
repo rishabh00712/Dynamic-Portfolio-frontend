@@ -421,6 +421,50 @@ function FluidLetter({ letter, style, letterRef, isSpace }) {
   );
 }
 
+// NEW: groups the per-letter FluidLetter spans so that a whole word wraps
+// as a single unit instead of breaking mid-word. Each run of non-space
+// characters is wrapped in an inline-block, white-space: nowrap container;
+// space characters are rendered directly between those containers, which
+// is where the browser is still allowed to break the line. Letter indices
+// (used for refs/measurement in useFluidLetters) are preserved exactly as
+// before — this only changes how the spans are grouped in the JSX tree,
+// not the animation logic itself.
+function renderFluidHeading(headingText, getLetterRef, letterStyle) {
+  const chars = headingText.split("");
+  const elements = [];
+  let wordBuffer = [];
+  let wordKey = null;
+
+  const flushWord = () => {
+    if (wordBuffer.length === 0) return;
+    elements.push(
+      <span key={`word-${wordKey}`} style={{ display: "inline-block", whiteSpace: "nowrap" }}>
+        {wordBuffer}
+      </span>
+    );
+    wordBuffer = [];
+    wordKey = null;
+  };
+
+  chars.forEach((letter, i) => {
+    const isSpace = letter === " ";
+    if (isSpace) {
+      flushWord();
+      elements.push(
+        <FluidLetter key={i} letter={letter} isSpace={true} style={letterStyle} letterRef={undefined} />
+      );
+    } else {
+      if (wordKey === null) wordKey = i;
+      wordBuffer.push(
+        <FluidLetter key={i} letter={letter} isSpace={false} style={letterStyle} letterRef={getLetterRef(i)} />
+      );
+    }
+  });
+  flushWord();
+
+  return elements;
+}
+
 /* ---------- Effect #2: fluid ripple background ----------
    A tiny stable-fluids solver (Jos Stam, "Real-Time Fluid Dynamics for
    Games"). Rendering is wave-only: the density field becomes glowing
@@ -1285,17 +1329,9 @@ export default function Header() {
                 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl leading-tight mb-5 md:mb-6 break-words"
                 style={{ color: THEME.textDark, fontFamily: THEME.headingFont }}
               >
-                {headingText.split("").map((letter, i) => {
-                  const isSpace = letter === " ";
-                  return (
-                    <FluidLetter
-                      key={i}
-                      letter={letter}
-                      isSpace={isSpace}
-                      letterRef={isSpace ? undefined : getLetterRef(i)}
-                      style={{ color: THEME.textDark, fontFamily: THEME.headingFont }}
-                    />
-                  );
+                {renderFluidHeading(headingText, getLetterRef, {
+                  color: THEME.textDark,
+                  fontFamily: THEME.headingFont,
                 })}
               </h1>
 
