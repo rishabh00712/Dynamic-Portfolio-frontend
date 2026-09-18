@@ -26,6 +26,35 @@ function writeStoredIdentity({ name, email }) {
   }
 }
 
+// Decode the Google ID token's payload directly on the client. This is NOT
+// signature verification (the backend already does that via verifyIdToken) —
+// it's just reading the name/email that Google already put in the token we
+// were handed, so we don't have to depend on the cookie round-trip to know
+// who just logged in. This matters because cross-site cookies (SameSite=None)
+// are unreliable on mobile Chrome/iOS due to third-party cookie blocking, so
+// waiting on a cookie-backed /session check to populate localStorage would
+// silently fail on exactly the browsers we're trying to fix.
+function decodeGoogleCredential(credential) {
+  try {
+    const payloadSegment = credential.split(".")[1];
+    const base64 = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const json = decodeURIComponent(
+      atob(padded)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join("")
+    );
+    const payload = JSON.parse(json);
+    if (payload?.name && payload?.email) {
+      return { name: payload.name, email: payload.email };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function GoogleLoginCorner() {
   const [status, setStatus] = useState("checking"); // checking | idle | success | error
   const [expanded, setExpanded] = useState(false);
@@ -91,17 +120,17 @@ export default function GoogleLoginCorner() {
 
       if (!res.ok) throw new Error("Login logging failed");
 
-      const data = await res.json();
+      await res.json();
 
       // Persist locally so this browser is recognized instantly on the next
-      // page load, without depending on the cookie surviving.
-      if (data?.name && data?.email) {
-        writeStoredIdentity({ name: data.name, email: data.email });
+      // page load — decoded straight from the credential we already have,
+      // so this doesn't depend on the cookie surviving on mobile browsers.
+      const decoded = decodeGoogleCredential(credentialResponse.credential);
+      if (decoded) {
+        writeStoredIdentity(decoded);
       } else {
-        // Backend didn't echo back name/email — decode it client-side isn't
-        // safe/necessary here since Google's own credential payload already
-        // has it, but we don't have it in this scope. Fall back to session
-        // endpoint so localStorage still gets populated correctly.
+        // Extremely unlikely (malformed token), but fall back to asking the
+        // backend, same as before.
         fetch(`${BACKEND_URL}/api/google-login/session`, { credentials: "include" })
           .then((r) => r.json())
           .then((sessionData) => {
