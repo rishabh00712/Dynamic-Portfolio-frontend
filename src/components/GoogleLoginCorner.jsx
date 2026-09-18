@@ -3,17 +3,58 @@ import { GoogleLogin } from "@react-oauth/google";
 import { BACKEND_URL } from "./apiConfig";
 import { google_auth_font } from "./theme";
 
+const IDENTITY_STORAGE_KEY = "portfolio_visitor_identity";
+
+function readStoredIdentity() {
+  try {
+    const raw = localStorage.getItem(IDENTITY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.name && parsed.email) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredIdentity({ name, email }) {
+  try {
+    localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify({ name, email }));
+  } catch {
+    // localStorage unavailable (private mode / storage disabled) — silently ignore,
+    // the cookie-based backend session check still works as a fallback.
+  }
+}
+
 export default function GoogleLoginCorner() {
   const [status, setStatus] = useState("checking"); // checking | idle | success | error
   const [expanded, setExpanded] = useState(false);
   const [widgetDismissed, setWidgetDismissed] = useState(false);
 
   useEffect(() => {
+    // 1. Check localStorage first — instant, and survives the mobile browsers
+    //    that are inconsistent about persisting third-party/SameSite cookies.
+    const stored = readStoredIdentity();
+    if (stored) {
+      setStatus("success");
+      return;
+    }
+
+    // 2. Fall back to the existing backend cookie session check, in case
+    //    localStorage was cleared but the cookie is still valid.
     fetch(`${BACKEND_URL}/api/google-login/session`, {
       credentials: "include",
     })
       .then((res) => res.json())
-      .then((data) => setStatus(data.loggedIn ? "success" : "idle"))
+      .then((data) => {
+        if (data.loggedIn) {
+          // Backfill localStorage so next load skips the network call.
+          writeStoredIdentity({ name: data.name, email: data.email });
+          setStatus("success");
+        } else {
+          setStatus("idle");
+        }
+      })
       .catch(() => setStatus("idle"));
   }, []);
 
@@ -50,7 +91,27 @@ export default function GoogleLoginCorner() {
 
       if (!res.ok) throw new Error("Login logging failed");
 
-      await res.json();
+      const data = await res.json();
+
+      // Persist locally so this browser is recognized instantly on the next
+      // page load, without depending on the cookie surviving.
+      if (data?.name && data?.email) {
+        writeStoredIdentity({ name: data.name, email: data.email });
+      } else {
+        // Backend didn't echo back name/email — decode it client-side isn't
+        // safe/necessary here since Google's own credential payload already
+        // has it, but we don't have it in this scope. Fall back to session
+        // endpoint so localStorage still gets populated correctly.
+        fetch(`${BACKEND_URL}/api/google-login/session`, { credentials: "include" })
+          .then((r) => r.json())
+          .then((sessionData) => {
+            if (sessionData.loggedIn) {
+              writeStoredIdentity({ name: sessionData.name, email: sessionData.email });
+            }
+          })
+          .catch(() => {});
+      }
+
       setStatus("success");
     } catch (err) {
       console.error("[GoogleLoginCorner] Login request failed:", err);
